@@ -60,3 +60,12 @@ TBD.
 * Step One : Get all the routes and filter them, in order to only keep routes that accept GET and doesn't have any parameters
 * Step Two : Generate a simple test : get the URL and check if a 200 code is returned.
 * Step Thee : Use a custom event to generate the view, check if it contains a FormView parameter in it. If so, generate a simple test : submit the form that may be in the view and check if a 200 code is returned.
+
+
+## License
+
+This bundle is under the MIT license. See the complete license in the bundle:
+
+```
+Resources/meta/LICENSE
+```
