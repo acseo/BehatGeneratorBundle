@@ -1,0 +1,25 @@
+{
+    "name": "acseo/behat-generator-bundle",
+    "type": "symfony-bundle",
+    "description": "This Bundle allows you to generate .feature file for each route of your project.",
+    "keywords": ["Symfony", "Beaht"],
+    "homepage": "https://github.com/acseo/BehatGeneratorBundle",
+    "authors": [
+        {
+            "name": "Nicolas Potier",
+            "email": "Nicolas.Potier@acseo-conseil.fr"
+        }
+    ],
+    "require": {
+        "php": ">=5.3.2",
+        "symfony/symfony" : ">=2.8.0",
+    },
+    "suggest": {
+
+    },
+    "autoload": {
+        "psr-0": { "ACSEO\\Bundle\\BehatGeneratorBundle": "" }
+    },
+    "target-dir": "ACSEO/Bundle/BehatGeneratorBundle",
+    "minimum-stability": "dev"
+}
