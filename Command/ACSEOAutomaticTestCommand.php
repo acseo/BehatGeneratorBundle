@@ -243,7 +243,7 @@ EOT;
         if ($options["isPublic"] == true && $options["templateParams"] != null ) {
             foreach ($options["templateParams"] as $param) {
                 if (is_object($param) && get_class($param) == "Symfony\Component\Form\FormView") {
-                    $io->comment("Formulaire trouvé dans le template de l'URI : ".$route->getPath());
+                    $io->text("Formulaire trouvé dans le template de l'URI : ".$route->getPath());
                     $formId = $param->vars["full_name"];
                     /* TODO : générer les tests pour chaque champ
                      foreach ($param->getIterator() as $formChild) {
@@ -289,7 +289,7 @@ EOT;
         }
         if(!$fs->exists($autoFeaturePath)) {
             $fs->mkdir($autoFeaturePath);
-            $io->comment("Creating the automatic folder in ".$featurePath);
+            $io->text("Creating the automatic folder in ".$featurePath);
         }
 
         return $autoFeaturePath;
@@ -390,7 +390,7 @@ EOT;
                 foreach ($missing as $m) {
                     $s .='--access "'.$p.' '.$m.' value" ';
                 }
-                $io->comment($s);
+                $io->text($s);
                 return false;
             }
 
