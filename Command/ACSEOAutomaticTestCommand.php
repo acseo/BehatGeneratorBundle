@@ -171,7 +171,7 @@ class ACSEOAutomaticTestCommand extends ContainerAwareCommand
             }
             $test = $this->generateBasicTest($io, $name, $route, $options);
             $test.= "\n".$this->generateFormTest($io, $name, $route, $options);
-            file_put_contents($autoFeaturePath."/".$name.".feature", $test);
+            file_put_contents($autoFeaturePath."/".str_replace(DIRECTORY_SEPARATOR, "_",$name).".feature", $test);
 
             $io->success("Writing feature test for :".$name);
         }
@@ -304,7 +304,7 @@ EOT;
             $session->save();
             session_write_close();
             return $templateParams;
-        } catch (AccessDeniedException $ade) {
+        } catch (\Exception $e) {
             return null;
         }
     }
@@ -321,7 +321,6 @@ EOT;
         $session->setName('security.debug.console');
         $session->set('_security_' . $firewallProvider, serialize($token));
         $this->getContainer()->get('security.context')->setToken($token);
-        $kernel = new SimpleHttpKernel();
         $request->setSession($session);
 
         return array($request, $session, $firewallProvider);
@@ -338,7 +337,7 @@ EOT;
             session_write_close();
             return array(true, $firewallProvider);
 
-        } catch (AccessDeniedException $ade) {
+        } catch (\Exception $e) {
             $session->save();
             session_write_close();
             return array(false, $firewallProvider);
