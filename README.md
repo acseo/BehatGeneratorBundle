@@ -27,28 +27,21 @@ public function registerBundles()
     );
 ```
 
-Configure the services
-
-```
-# app/config/services
-
-parameters:
-    templating.engine.delegating.class: ACSEO\Bundle\BehatGeneratorBundle\Templating\EventableDelegatingEngine
-
-services:
-    appbundle.event_listener.twig_render_listener:
-        class: ACSEO\Bundle\BehatGeneratorBundle\Listener\TwigRenderListener
-        tags:
-            - { name: kernel.event_subscriber }
-```
-
 That's it ! now the command ```php app/console acseo:automatic-test``` is ready.
 
 ## Usage
 
 You can use the command ```app/console acseo:automatic-test``` in order to generate feature files.
 
-The command has many options : use ```app/console acseo:automatic-test --help``` to see them.
+If you do so, there is a lot of chances that the command will detect protected routes that *require to login*.
+It will prompt you multiple information that will be used, such as the login url, username and password, etc.
+
+If you want to avoid prompt, you can call the command with the usefull information :
+
+```
+app/console acseo:automatic-test --access "main uri /login" --access "main loginField username " --access "main passwordField password" --access "main submitField Login" --access "main login test@test.com" --access "main password test"
+
+```
 
 ## Customization.
 
