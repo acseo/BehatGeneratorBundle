@@ -13,9 +13,9 @@ You don't need behat to generate the tests, but to run them.
 To add behat in your project, you can follow the procedure here : http://docs.behat.org/en/v3.0/cookbooks/1.symfony2_integration.html
 
 ```
-composer require --dev behat/behat
-composer require --dev behat/mink-extension
-composer require --dev behat/mink-zombie-driver
+$ composer require --dev behat/behat
+$ composer require --dev behat/mink-extension
+$ composer require --dev behat/mink-zombie-driver
 ```
 
 Then your ```behat.yml``` file should look like :
@@ -86,12 +86,26 @@ EOT;
 }
 ```
 
+### Zombie
+
+We will use Zombie.js as browser emulator. Why ? Because it allows us to check the status code after a JS test.
+
+The installation documentation can be found here : http://mink.behat.org/en/latest/drivers/zombie.html :
+
+* Install node.js by following instructions from the official site: http://nodejs.org/.
+* Install npm (node package manager) by following the instructions from http://npmjs.org/.
+* Install zombie.js with npm:
+
+```
+$ npm install -g zombie
+```
+
 ### BehatGeneratorBundle
 
 Include the bundle in your project :
 
 ```
-composer require acseo/behat-generator-bundle
+$ composer require acseo/behat-generator-bundle
 ```
 
 Enable the bundle in AppKernel.php
@@ -120,7 +134,7 @@ It will prompt you multiple information that will be used, such as the login url
 If you want to avoid prompt, you can call the command with the usefull information :
 
 ```
-app/console acseo:automatic-test --access "main uri /login" --access "main loginField username " --access "main passwordField password" --access "main submitField Login" --access "main login test@test.com" --access "main password test"
+$ app/console acseo:automatic-test --access "main uri /login" --access "main loginField username " --access "main passwordField password" --access "main submitField Login" --access "main login test@test.com" --access "main password test"
 
 ```
 
