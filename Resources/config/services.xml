@@ -4,13 +4,17 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://symfony.com/schema/dic/services http://symfony.com/schema/dic/services/services-1.0.xsd">
 
-    <!--
+    <parameters>
+        <parameter key="templating.engine.delegating.class">ACSEO\Bundle\BehatGeneratorBundle\Templating\EventableDelegatingEngine</parameter>
+    </parameters>
+    
     <services>
-        <service id="acseo_behat_generator.example" class="ACSEO\Bundle\BehatGeneratorBundle\Example">
-            <argument type="service" id="service_id" />
-            <argument>plain_value</argument>
-            <argument>%parameter_name%</argument>
+        <service id="acseo.util.firewall_manager" class="ACSEO\Bundle\BehatGeneratorBundle\Util\FirewallManager">
+            <argument type="collection"></argument> <!-- will be overrided by compiler pass -->
+        </service>
+
+        <service id="acseo.event_listener.twig_render_listener" class="ACSEO\Bundle\BehatGeneratorBundle\Listener\TwigRenderListener">
+            <tag name="kernel.event_subscriber" />
         </service>
     </services>
-    -->
 </container>

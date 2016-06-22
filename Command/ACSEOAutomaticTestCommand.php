@@ -61,10 +61,7 @@ class ACSEOAutomaticTestCommand extends ContainerAwareCommand
         $this
             ->setName('acseo:automatic-test')
             ->setDefinition(array(
-                new InputOption('firewallProvider', null, InputOption::VALUE_REQUIRED, 'The firewall provider used to check if URI is public', 'main'),
-                new InputOption('login', null, InputOption::VALUE_REQUIRED, 'A login for protected routes', null),
-                new InputOption('password', null, InputOption::VALUE_REQUIRED, 'A password for protected routes', null),
-
+                new InputOption('access', null, InputOption::VALUE_REQUIRED | InputOption::VALUE_IS_ARRAY, 'Information for access. Must be of type : firewallName uri|loginField|passwordField|submitField|login|password value', array()),
             ))
             ->setDescription('Generate automatic tests')
         ;
@@ -80,16 +77,12 @@ class ACSEOAutomaticTestCommand extends ContainerAwareCommand
 
         $autoFeaturePath = $this->checkFolderStructure($io);
 
-        $firewallProvider = $input->getOption('firewallProvider');
-        $login = $input->getOption('login');
-        $password = $input->getOption('password');
-        $rememberLogin = false;
-        if ($login != null && $password != null) {
-            $rememberLogin = true;
+        $providerAccess = $this->managerProviderAccessOption($input, $io);
+        if (false === $providerAccess) {
+            return;
         }
 
         $routes = $this->getContainer()->get('router')->getRouteCollection();
-
 
         foreach ($routes as $name => $route) {
             $this->convertController($route);
@@ -104,45 +97,76 @@ class ACSEOAutomaticTestCommand extends ContainerAwareCommand
                 continue;
             }
 
-            $isPublic = $this->isUriPublic($route->getPath(), $firewallProvider);
+            list($isPublic, $firewallProvider) = $this->isUriPublic($route->getPath());
 
-            $options = array ("isPublic" => true, "login" => $login, "password" => $password, "templateParams" => array());
+            if (!isset($providerAccess[$firewallProvider])) {
+                $providerAccess[$firewallProvider] = array(
+                    "uri" => null,
+                    "loginField" => null,
+                    "passwordField" => null,
+                    "submitField" => null,
+                    "login" => null,
+                    "password" => null,
+                    "remember" => false
+                );
+            }
+
+            $options = array ("isPublic" => true, "providerAccess" => $providerAccess, "firewallProvider" => $firewallProvider, "templateParams" => array());
             if ($isPublic) {
                 $options["isPublic"] = true;
-                $options["templateParams"] = $this->getUriTemplateParams($route->getPath(), $firewallProvider);
+                $options["templateParams"] = $this->getUriTemplateParams($route->getPath());
             }
             else {
                 $options["isPublic"] = false;
-                if ($rememberLogin == true ) {
-                    $options["login"] = $login;
-                    $options["password"] = $password;
-                }
-                else {
+                if ($providerAccess[$firewallProvider]["remember"] == false ) {
                     $dialog = $this->getHelper('dialog');
 
-                    $login = $dialog->ask(
+                    $providerAccess[$firewallProvider]["uri"] = $dialog->ask(
                         $io,
-                        'The route '.$route->getPath()." is protected, please enter a login to generate the test : ",
-                        'test@acseo-conseil.fr'
+                        'The route '.$route->getPath()." is protected by the firewall $firewallProvider, please enter an uri to login : ",
+                        '/login'
                     );
-                    $password = $dialog->ask(
+                    $providerAccess[$firewallProvider]["loginField"] = $dialog->ask(
                         $io,
-                        'The route '.$route->getPath()." is protected, please enter a password to generate the test : ",
-                        'motdepasse'
+                        "Please enter the login field to fill on ".$providerAccess[$firewallProvider]["uri"]." : ",
+                        '_username'
                     );
+                    $providerAccess[$firewallProvider]["passwordField"] = $dialog->ask(
+                        $io,
+                        "Please enter the password field to fill on ".$providerAccess[$firewallProvider]["uri"]." : ",
+                        '_password'
+                    );
+                    $providerAccess[$firewallProvider]["submitField"] = $dialog->ask(
+                        $io,
+                        "Please enter the submit field to click on ".$providerAccess[$firewallProvider]["uri"]." : ",
+                        'Login'
+                    );
+
+                    $providerAccess[$firewallProvider]["login"] = $dialog->ask(
+                        $io,
+                        "Please enter the username to type in  ".$providerAccess[$firewallProvider]["loginField"]." field : ",
+                        'test@test.com'
+                    );
+                    $providerAccess[$firewallProvider]["password"] = $dialog->ask(
+                        $io,
+                        "Please enter the password to type in  ".$providerAccess[$firewallProvider]["passwordField"]." field : ",
+                        'test'
+                    );
+
                     $choices = array('yes', 'no');
 
                     $rememberLogin = $dialog->select(
                         $output,
-                        'Remember this login and password for other tests',
+                        'Remember this informations for other tests with this firewall ?',
                         $choices,
                         0
                     );
                     if ($choices[$rememberLogin] == "yes") {
-                        $rememberLogin = true;
+                        $providerAccess[$firewallProvider]["remember"] = true;
                     } else {
-                        $rememberLogin = false;
+                        $providerAccess[$firewallProvider]["remember"] = false;
                     }
+                    $options["providerAccess"] = $providerAccess;
                 }
             }
             $test = $this->generateBasicTest($io, $name, $route, $options);
@@ -158,11 +182,25 @@ class ACSEOAutomaticTestCommand extends ContainerAwareCommand
     {
         $requestOption = "";
         if ($options["isPublic"] == false) {
-            $requestOption =  'When I send a authenticated "GET" request to "%s" as "%s" using password "%s"';
-            $requestOption = sprintf($requestOption, $route->getPath(), $options["login"], $options["password"]);
+            $authenticateTemplate = <<<EOT
+Given I am on "%s"
+    When I fill in "%s" with "%s"
+    And I fill in "%s" with "%s"
+    And I press "%s"
+    Then I am on "%s"
+EOT;
+            $accessInfos = $options["providerAccess"][$options["firewallProvider"]];
+
+            $requestOption = sprintf($authenticateTemplate,
+                $accessInfos["uri"],
+                $accessInfos["loginField"], $accessInfos["login"],
+                $accessInfos["passwordField"], $accessInfos["password"],
+                $accessInfos["submitField"],
+                $route->getPath()
+            );
         }
         else {
-            $requestOption = 'When I request "GET %s"';
+            $requestOption = 'Given I am on "%s"';
             $requestOption = sprintf($requestOption, $route->getPath());
         }
 
@@ -175,14 +213,15 @@ Feature: Automatic test of route %s
   Scenario: Test page %s
     %s
     Then the response status code should be 200
-
+    Then the url should match "%s"
 EOT;
 
         $output = sprintf($template,
                             $name,
                             $name,
                             $name,
-                            $requestOption
+                            $requestOption,
+                            $route->getPath()
                         );
 
         return $output;
@@ -192,14 +231,10 @@ EOT;
     {
 
         $template = <<<EOT
-Feature: Automatic test of the form id %s in route %s
-  In order to use the website
-  submitting the empty form with id %s
-  should respond HTTP Code 200
-
+@javascript
   Scenario: Test form %s of page %s
-    When I request "GET %s"
-    And I Submit the form with id %s
+    Given I am on "%s"
+    And I Submit the form with id "%s"
     Then the response status code should be 200
 
 EOT;
@@ -220,7 +255,7 @@ EOT;
                     $output .= sprintf($template,
                                         $formId,
                                         $name,
-                                        $formId,
+                                        $route->getPath(),
                                         $formId,
                                         $name,
                                         $route->getPath(),
@@ -260,12 +295,12 @@ EOT;
         return $autoFeaturePath;
     }
 
-    private function getUriTemplateParams($uri, $firewallProvider)
+    private function getUriTemplateParams($uri)
     {
-        list($request, $session) = $this->createRequestAndSession($uri, $firewallProvider);
+        list($request, $session) = $this->createRequestAndSession($uri);
         try {
             $response = $this->getContainer()->get('kernel')->handle($request);
-            $templateParams = $this->getContainer()->get("appbundle.event_listener.twig_render_listener")->getLastTemplateParams();
+            $templateParams = $this->getContainer()->get("acseo.event_listener.twig_render_listener")->getLastTemplateParams();
             $session->save();
             session_write_close();
             return $templateParams;
@@ -274,9 +309,12 @@ EOT;
         }
     }
 
-    private function createRequestAndSession($uri, $firewallProvider)
+    private function createRequestAndSession($uri)
     {
-        $username = "test";
+
+        $request = Request::create($uri, 'GET', array(), array('security.debug.console' => true));
+        $firewallProvider = $this->getContainer()->get("acseo.util.firewall_manager")->getFirewallNameForRequest($request);
+        $username = "anon.";
         $roles = array("IS_AUTHENTICATED_ANONYMOUSLY");
         $token = new AnonymousToken($firewallProvider, $username, $roles);
         $session = $this->getContainer()->get('session');
@@ -284,39 +322,80 @@ EOT;
         $session->set('_security_' . $firewallProvider, serialize($token));
         $this->getContainer()->get('security.context')->setToken($token);
         $kernel = new SimpleHttpKernel();
-        $request = Request::create($uri, 'GET', array(), array('security.debug.console' => true));
         $request->setSession($session);
 
-        return array($request, $session);
+        return array($request, $session, $firewallProvider);
     }
 
-    private function isUriPublic($uri, $firewallProvider)
+    private function isUriPublic($uri)
     {
-        /*
-        $username = "test";
-        $roles = array("IS_AUTHENTICATED_ANONYMOUSLY");
-        $token = new AnonymousToken($firewallProvider, $username, $roles);
-        $session = $this->getContainer()->get('session');
-        $session->setName('security.debug.console');
-        $session->set('_security_' . $firewallProvider, serialize($token));
-        $this->getContainer()->get('security.context')->setToken($token);
-        $kernel = new SimpleHttpKernel();
-        $request = Request::create($uri, 'GET', array(), array('security.debug.console' => true));
-        $request->setSession($session);
-        */
-        list($request, $session) = $this->createRequestAndSession($uri, $firewallProvider);
+        list($request, $session, $firewallProvider) = $this->createRequestAndSession($uri);
         $kernel = new SimpleHttpKernel();
         $event = new GetResponseEvent($kernel, $request, HttpKernelInterface::MASTER_REQUEST);
         try {
             $this->getContainer()->get('security.firewall')->onKernelRequest($event);
             $session->save();
             session_write_close();
-            return true;
+            return array(true, $firewallProvider);
 
         } catch (AccessDeniedException $ade) {
             $session->save();
             session_write_close();
-            return false;
+            return array(false, $firewallProvider);
         }
+    }
+
+    private function managerProviderAccessOption($input, $io)
+    {
+        $access = $input->getOption('access');
+        $providerAccess = array();
+        foreach ($access as $a) {
+            $data = explode(" " , $a);
+            if(sizeof($data) < 3) {
+                throw new \Exception("You must provide 3 arguments with access option : [firewallName] [attribute] [value]");
+            }
+            $f = array_shift($data);
+            $k = array_shift($data);
+            $v = implode("", $data);
+
+            if (!isset($providerAccess[$f])) {
+                $providerAccess[$f] = array(
+                    "uri" => null,
+                    "loginField" => null,
+                    "passwordField" => null,
+                    "submitField" => null,
+                    "login" => null,
+                    "password" => null,
+                    "remember" => true
+                );
+            }
+
+            if (!array_key_exists($k, $providerAccess[$f])) {
+                $io->error("The ".$k." attribute is not valid. Available attributes : ".implode(", ", array_keys($providerAccess[$f])));
+                return false;
+            }
+            $providerAccess[$f][$k] = $v;
+        }
+
+        foreach ($providerAccess as $p => $d) {
+            $missing = array();
+            foreach ($d as $k => $v) {
+                if ($v == null ) {
+                    $missing[] = $k;
+                }
+            }
+            if (sizeof($missing) > 0 ) {
+                $io->error("Some information are missing for the firewall ".$p." : ".implode(", " , $missing));
+                $s = "";
+                foreach ($missing as $m) {
+                    $s .='--access "'.$p.' '.$m.' value" ';
+                }
+                $io->comment($s);
+                return false;
+            }
+
+        }
+
+        return $providerAccess;
     }
 }
