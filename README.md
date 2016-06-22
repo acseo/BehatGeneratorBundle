@@ -7,6 +7,87 @@ This Bundle allows you to generate *.feature* file for each route of your projec
 
 ## Installation
 
+### Behat
+
+You don't need behat to generate the tests, but to run them.
+To add behat in your project, you can follow the procedure here : http://docs.behat.org/en/v3.0/cookbooks/1.symfony2_integration.html
+
+```
+composer require --dev behat/behat
+composer require --dev behat/mink-extension
+composer require --dev behat/mink-zombie-driver
+```
+
+Then your ```behat.yml``` file should look like :
+
+```
+# behat.yml
+default:
+    extensions:
+        Behat\MinkExtension:
+            base_url: "http://localhost:8000/"
+            sessions:
+                default:
+                    zombie: ~
+                javascript:
+                    zombie: ~
+    suites:
+        default:
+            contexts:
+                - FeatureContext: { container: "@service_container" }
+```
+
+You will need to define a FeatureContext class :
+
+```
+<?php
+// features/bootstrap/FeatureContext.php
+
+use Behat\MinkExtension\Context\MinkContext;
+
+/**
+ * Defines application features from the specific context.
+ */
+class FeatureContext extends MinkContext
+{
+    /**
+     * Initializes context.
+     *
+     * Every scenario gets its own context instance.
+     * You can also pass arbitrary arguments to the
+     * context constructor through behat.yml.
+     */
+    public function __construct($container)
+    {
+         $this->container = $container;
+    }
+
+    /**
+     * Some forms do not have a Submit button just pass the ID
+     *
+     * @When I Submit the form with id :arg1
+     */
+    public function iSubmitTheFormWithId($arg1)
+    {
+        // https://jsfiddle.net/v3rv47hL/
+        $jsTemplate = <<<EOT
+        "var forms = document.getElementsByTagName('form');var search = '%s';var x = null;if (forms.length == 1) {x = forms[0];} else { for (var i = 0; i < forms.length; i++) { if (forms[i].getAttribute('class') == search || forms[i].getAttribute('id') == search || forms[i].getAttribute('name') == search) { x = forms[i]; break; } } } if (x != null) x.submit();"
+EOT;
+        $js = sprintf($jsTemplate, $arg1);
+
+        $node = $this->getSession()->getPage()->find('named', array('id', $arg1));
+        if($node) {
+            $this->getSession()->executeScript($js);
+        } else {
+            throw new Exception('No form with id : '.$arg1.' found on this page');
+        }
+    }
+
+}
+```
+
+### BehatGeneratorBundle
+
 Include the bundle in your project :
 
 ```
