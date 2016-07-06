@@ -299,12 +299,21 @@ EOT;
     {
         list($request, $session) = $this->createRequestAndSession($uri);
         try {
+            $oldErrorHandler = set_error_handler(
+                function( $num, $str, $file, $line, $context = null )
+                {
+                    throw new \Exception("Error :".$str." in  :".$file.", line :".$line);
+                    exit();
+                }
+            );
             $response = $this->getContainer()->get('kernel')->handle($request);
             $templateParams = $this->getContainer()->get("acseo.event_listener.twig_render_listener")->getLastTemplateParams();
             $session->save();
             session_write_close();
+            set_error_handler($oldErrorHandler);
             return $templateParams;
         } catch (\Exception $e) {
+            set_error_handler($oldErrorHandler);
             return null;
         }
     }
