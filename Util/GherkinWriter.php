@@ -90,6 +90,17 @@ class GherkinWriter
     }
 
     /**
+     * Add a comment in the output.
+     *
+     * @param string   $text
+     * @param int|null $indent
+     */
+    public function addComment($text, $indent = null)
+    {
+        return $this->addLine('# ' . $text, $indent);
+    }
+
+    /**
      * Generate text output based on all lines.
      *
      * @return string
