@@ -110,7 +110,7 @@ class ApiContext extends RestContext
             // Building parameters to send for login
             $parameters = [];
             foreach ($authConf['route']['parameters'] as $attrName => $value) {
-                $parameters[$attrName] = $this->getValue($value, $authConf['user']['attributes']);
+                $parameters[$attrName] = $this->getValue($value, array('user' => $authConf['user']['attributes']));
             }
 
             // Login
