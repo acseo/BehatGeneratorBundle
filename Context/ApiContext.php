@@ -13,7 +13,7 @@ use JMS\SecurityExtraBundle\Annotation\Secure;
  */
 class ApiContext extends RestContext
 {
-    protected $token;
+    protected static $token;
     protected $container;
 
     public function __construct(Request $request, $container)
@@ -85,13 +85,17 @@ class ApiContext extends RestContext
      */
     protected function getToken()
     {
-        if (!$this->token) {
+        // Get user config from parameters.
+        $conf = $this->container->getParameter('ACSEOBehatGeneratorBundle');
+        $authConf = $conf['authentication'];
 
-            // Get user config from parameters.
-            $conf = $this->container->getParameter('ACSEOBehatGeneratorBundle');
-            $authConf = $conf['authentication'];
+        // Try to fetch it
+        $em = $this->container->get($conf['entity_manager']);
+        $userRepo = $em->getRepository($authConf['user']['class']);
+        $user = $userRepo->find(1);
 
-            // Create user
+        // Create it if it does not
+        if (!$user) {
             $user = new $authConf['user']['class']();
             foreach ($authConf['user']['attributes'] as $attrName => $value) {
                 $setter = $this->guessSetter($attrName, $user);
@@ -101,9 +105,6 @@ class ApiContext extends RestContext
                     throw new \Exception('Attribute with name "'. $attrName . '" of class "'. $authConf['user']['class'] .'" has no setter defined.');
                 }
             }
-
-            // Save it
-            $em = $this->container->get($conf['entity_manager']);
             $em->persist($user);
             $em->flush();
 
@@ -130,10 +131,10 @@ class ApiContext extends RestContext
             $responseLoginData = json_decode($responseLogin->getContent(), true);
 
             // Store token
-            $this->token = $responseLoginData['token'];
+            self::$token = $responseLoginData['token'];
         }
 
-        return $this->token;
+        return self::$token;
     }
 
     /**
