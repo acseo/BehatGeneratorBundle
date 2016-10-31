@@ -155,13 +155,18 @@ When using an api, it's often not needed to make custom tests. Knowing that ever
 
 For now, it is only available for api using NelmioApiDoc, that we use to get all elements needed to write tests (route, methods, parameters to send).
 
-You also need these dependencies, add them in your composer.json if it's not already the case:
+You also need these dependencies, add them in your ``composer.json`` if it's not already the case:
+
+```
     - "behat/mink-extension": "~2.0"
     - "behat/mink-browserkit-driver": "~1.1"
     - "behatch/contexts": "dev-master"
     - "fzaninotto/faker": "~1.6.0"
+```
 
-And add in behat.yml our specific features:
+And add in ``behat.yml`` our specific features:
+
+```
 default:
   ...
   suites:
@@ -169,7 +174,8 @@ default:
       contexts:
         - ACSEO\Bundle\BehatGeneratorBundle\Context\ApiContext: { container: "@service_container" }
         - ACSEO\Bundle\BehatGeneratorBundle\Context\ExtendedMinkContext
-        - ACSEO\Bundle\BehatGeneratorBundle\Context\ParallelContext: { container: "@service_container" }
+        - ACSEO\Bundle\BehatGeneratorBundle\Context\ParallelContext: { container: "@service_container"
+```
 
 To generate these tests, just run this command in your terminal:
 app/console acseo:automatic-api-test
@@ -177,9 +183,15 @@ app/console acseo:automatic-api-test
 You will see all generated features appear.
 
 Then, if everything all right:
-bin/behat
 
-If you need authentication, please add to your config_test.yml
+```
+$ bin/behat
+```
+
+If you need authentication, please add to your ``config_test.yml``
+
+```
+# app/config/config_test.yml
 parameters:
     ACSEOBehatGeneratorBundle:
         entity_manager: doctrine.orm.entity_manager # Put your own entity manager
@@ -197,7 +209,7 @@ parameters:
                     _username: user.username
                     _password: user.plainPassword
 
-
+```
 
 ## License
 
