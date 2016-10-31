@@ -107,9 +107,8 @@ class GherkinWriter
      */
     public function generateOutput()
     {
-        $EOL = chr(10).chr(13);
-        $output = implode($EOL, $this->output);
-        $output .= $EOL; // Add an empty line at the end of the file
+        $output = implode(PHP_EOL, $this->output);
+        $output .= PHP_EOL; // Add an empty line at the end of the file
 
         $this->init();
 
