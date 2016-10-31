@@ -149,6 +149,67 @@ TBD.
 * Step Two : Generate a simple test : get the URL and check if a 200 code is returned.
 * Step Thee : Use a custom event to generate the view, check if it contains a FormView parameter in it. If so, generate a simple test : submit the form that may be in the view and check if a 200 code is returned.
 
+## API auto generated tests
+
+When using an api, it's often not needed to make custom tests. Knowing that everything works in regular conditions is enough. In that case, you can use the Acseo auto generated tests for api. It will create a behat feature test in folder features/automatic/api/ for each api resource in your project. That is to say, a test to create a resource, get it, get all, edit one, delete one (some steps could be missing if you did not opened the action in your api). All of these tests will be run in a temporary SQL Lite database, so your real database won't be compromised. Obviously, if a resource does not have a route for the creation of a new item, no test can be written (console will warn you then), and it's up to you to create tests on your own.
+
+For now, it is only available for api using NelmioApiDoc, that we use to get all elements needed to write tests (route, methods, parameters to send).
+
+You also need these dependencies, add them in your ``composer.json`` if it's not already the case:
+
+```
+    - "behat/mink-extension": "~2.0"
+    - "behat/mink-browserkit-driver": "~1.1"
+    - "behatch/contexts": "dev-master"
+    - "fzaninotto/faker": "~1.6.0"
+```
+
+And add in ``behat.yml`` our specific features:
+
+```
+default:
+  ...
+  suites:
+    default:
+      contexts:
+        - ACSEO\Bundle\BehatGeneratorBundle\Context\ApiContext: { container: "@service_container" }
+        - ACSEO\Bundle\BehatGeneratorBundle\Context\ExtendedMinkContext
+        - ACSEO\Bundle\BehatGeneratorBundle\Context\ParallelContext: { container: "@service_container"
+```
+
+To generate these tests, just run this command in your terminal:
+app/console acseo:automatic-api-test
+
+You will see all generated features appear.
+
+Then, if everything all right:
+
+```
+$ bin/behat
+```
+
+If you need authentication, please add to your ``config_test.yml``
+
+```
+# app/config/config_test.yml
+parameters:
+    ACSEOBehatGeneratorBundle:
+        entity_manager: doctrine.orm.entity_manager # Put your own entity manager
+        authentication:
+            user:
+                class: \AcmeBundle\Entity\User      # Put your own class for user
+                attributes:                         # Enter value to fill out on user creation
+                    username: user
+                    email: user@test.com
+                    plainPassword: test
+                    enabled: true
+            route:                                  # Define the route
+                url: /login_check
+                parameters:                         # And parameters to send
+                    _username: user.username
+                    _password: user.plainPassword
+
+```
 
 ## License
 
