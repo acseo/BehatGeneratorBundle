@@ -208,50 +208,101 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
     {
         $params = array();
 
+        // Fetch asserts bound to entity
+        $asserts = array();
+        $entityNamespace = explode(':', $data->getOutput());
+        if (isset($entityNamespace[1])) {
+            $entityNamespace = $entityNamespace[1];
+        }
+        if ($entityNamespace) {
+            if ($entityNamespace[0] !== '\\') {
+                $entityNamespace = '\\' . $entityNamespace;
+            }
+            $asserts = $this->getAsserts($entityNamespace);
+        }
+
         $faker = \Faker\Factory::create('fr_FR');
 
         foreach ($data->getParameters() as $name => $details) {
 
-            // Make it fits to Faker
+            // Make it fit to Faker
+
+            $attribute = $name;
 
             // Integer
             if ('integer' === $details['dataType']) {
-                $details['dataType'] = 'randomDigit';
+                $attribute = 'randomDigit';
             // Float
             } elseif ('float' === $details['dataType']) {
-                $details['dataType'] = 'randomFloat';
+                $attribute = 'randomFloat';
             // String
             } elseif ('string' === $details['dataType']) {
                 // Post code
-                if (false !== stripos($name, 'zip')) {
-                    $details['dataType'] = 'postcode';
+                if (false !== stripos($name, 'zipcode')) {
+                    $attribute = 'postcode';
                 // Phone
                 } elseif (false !== stripos($name, 'phone')) {
-                    $details['dataType'] = 'phoneNumber';
+                    $attribute = 'phoneNumber';
                 // Address
                 } elseif (false !== stripos($name, 'location')) {
-                    $details['dataType'] = 'address';
-                // Url
-                } elseif (false !== stripos($name, 'url')) {
-                    $details['dataType'] = 'domainName';
+                    $attribute = 'address';
+                // Url, domain name
+                } elseif (false !== stripos($name, 'url') || false !== stripos($name, 'website')) {
+                    $attribute = 'domainName';
                 // Files (disabled for now - TODO)
                 } elseif (false !== stripos($name, 'file') || false !== stripos($name, 'attachment')) {
-                    $details['dataType'] = null;
-                // Anything else
-                } else {
-                    $details['dataType'] = 'word';
+                    $attribute = null;
+                }
+                // Default value
+                try {
+                    $faker->$attribute;
+                } catch (\Exception $e) {
+                    $attribute = 'word';
                 }
             // Datetime
             } elseif ('datetime' === $details['dataType']) {
-                $details['dataType'] = 'iso8601';
+                $attribute = 'iso8601';
+            // Id, or collection of ids - Disabled
+            } elseif (false !== stripos($details['dataType'], 'IRI')) {
+                $attribute = null;
             }
 
             // Try to get a value
             try {
-                $params[$name] = $faker->$name;
+                if ($attribute) {
+                    $params[$name] = $faker->$attribute;
+                } else {
+                    throw new \Exception('Nothing to process');
+                }
+                // Handle asserts (text length only for now)
+                if (isset($asserts[$name])) {
+                    // If try to generate text
+                    if ($details['dataType'] === 'string') {
+                        // Fit to assert bas on length
+                        if (isset($asserts[$name]['Length'])) {
+                            // Minimum
+                            if (isset($asserts[$name]['Length']['min'])) {
+                                while (strlen($params[$name]) < $asserts[$name]['Length']['min']) {
+                                    $params[$name] = $faker->$details['dataType'];
+                                }
+                            }
+                            // Maximum
+                            if (isset($asserts[$name]['Length']['max'])) {
+                                if (strlen($params[$name]) > $asserts[$name]['Length']['max']) {
+                                    $params[$name] = $faker->realText($asserts[$name]['Length']['max']);
+                                }
+                            }
+                        }
+                    }
+                }
+
             } catch (\Exception $e) {
                 try {
-                    $params[$name] = $faker->$details['dataType'];
+                    if ($attribute) {
+                        $params[$name] = $faker->$details['dataType'];
+                    } else {
+                        throw new \Exception('Nothing to process');
+                    }
                 } catch (\Exception $e) {
                     $params[$name] = null;
                     if (true === $details['required']) {
@@ -309,5 +360,47 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
         }
 
         return implode('_', $ret);
+    }
+
+    /**
+     * Get asserts attached to an entity.
+     *
+     * @param  string $namespace
+     * @return array
+     */
+    protected function getAsserts($namespace)
+    {
+        $validations = [];
+        $validator = $this->getContainer()->get("validator");
+        $metadata = $validator->getMetadataFor(new $namespace());
+        $constrainedProperties = $metadata->getConstrainedProperties();
+        foreach ($constrainedProperties as $constrainedProperty) {
+            $propertyMetadata = $metadata->getPropertyMetadata($constrainedProperty);
+            $constraints = $propertyMetadata[0]->constraints;
+            $outputConstraintsCollection = [];
+            foreach($constraints as $constraint) {
+                $class = new \ReflectionObject($constraint);
+                $constraintName = $class->getShortName();
+                $constraintParameter = null;
+                switch ($constraintName) {
+                    case "NotBlank":
+                        $param = "notBlank";
+                        break;
+                    case "Type":
+                        $param = $constraint->type;
+                        break;
+                    case "Length":
+                        $param = [
+                            'min' => $constraint->min,
+                            'max' => $constraint->max
+                        ];
+                        break;
+                }
+                $outputConstraintsCollection[$constraintName] = $param;
+            }
+            $validations[$constrainedProperty] = $outputConstraintsCollection;
+        }
+
+        return $validations;
     }
 }
