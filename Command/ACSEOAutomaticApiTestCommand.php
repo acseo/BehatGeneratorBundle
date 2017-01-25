@@ -3,6 +3,7 @@
 namespace ACSEO\Bundle\BehatGeneratorBundle\Command;
 
 use ACSEO\Bundle\BehatGeneratorBundle\Util\GherkinWriter as Writer;
+use ACSEO\Bundle\BehatGeneratorBundle\Util\ApiEndpointGuesser;
 use Symfony\Bundle\FrameworkBundle\Command\ContainerAwareCommand;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
@@ -14,7 +15,9 @@ use Symfony\Component\Filesystem\Filesystem;
  */
 class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
 {
+    protected $io;
     protected $writer;
+    protected $endpointGuesser;
 
     /**
      * {@inheritdoc}
@@ -35,6 +38,7 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
     {
         $this->io = new SymfonyStyle($input, $output);
         $this->writer = new Writer();
+        $this->endpointGuesser = new ApiEndpointGuesser();
 
         $autoFeatureApiPath = $this->checkFolderStructure();
 
@@ -324,7 +328,7 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
      */
     protected function isREST($action, $data)
     {
-        $expected = '/'. $this->camelToSnakeCase($data->getSection()) .'s';
+        $endpoint = $this->endpointGuesser->guessEndpoint($data->getSection());
 
         switch ($action) {
             // Collection operations
@@ -335,31 +339,14 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
             case 'GET_SINGLE':
             case 'EDIT':
             case 'DELETE':
-                $expected .= '/{id}';
+                $endpoint .= '/{id}';
                 break;
 
             default:
                 return false;
         }
 
-        return $data->getResource() === $expected;
-    }
-
-    /**
-     * Turn camelCase into snake_case.
-     *
-     * @param  string $input
-     * @return string
-     */
-    protected function camelToSnakeCase($input)
-    {
-        preg_match_all('!([A-Z][A-Z0-9]*(?=$|[A-Z][a-z0-9])|[A-Za-z][a-z0-9]+)!', $input, $matches);
-        $ret = $matches[0];
-        foreach ($ret as &$match) {
-            $match = $match == strtoupper($match) ? strtolower($match) : lcfirst($match);
-        }
-
-        return implode('_', $ret);
+        return strpos($data->getResource(), $endpoint) !== false;
     }
 
     /**
@@ -382,21 +369,24 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
                 $class = new \ReflectionObject($constraint);
                 $constraintName = $class->getShortName();
                 $constraintParameter = null;
+                $param = null;
                 switch ($constraintName) {
-                    case "NotBlank":
+                    case 'NotBlank':
                         $param = "notBlank";
                         break;
-                    case "Type":
+                    case 'Type':
                         $param = $constraint->type;
                         break;
-                    case "Length":
+                    case 'Length':
                         $param = [
                             'min' => $constraint->min,
                             'max' => $constraint->max
                         ];
                         break;
                 }
-                $outputConstraintsCollection[$constraintName] = $param;
+                if ($param) {
+                    $outputConstraintsCollection[$constraintName] = $param;
+                }
             }
             $validations[$constrainedProperty] = $outputConstraintsCollection;
         }
