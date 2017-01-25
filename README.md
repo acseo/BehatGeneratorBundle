@@ -188,10 +188,10 @@ Then, if everything all right:
 $ bin/behat
 ```
 
-If you need authentication, please add to your ``config_test.yml``
+If you need authentication, please add to your ``config_dev.yml``
 
 ```
-# app/config/config_test.yml
+# app/config/config_dev.yml
 parameters:
     ACSEOBehatGeneratorBundle:
         entity_manager: doctrine.orm.entity_manager # Put your own entity manager
