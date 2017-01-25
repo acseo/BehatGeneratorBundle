@@ -9,9 +9,12 @@ use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Console\Style\SymfonyStyle;
 use Symfony\Component\Filesystem\Filesystem;
+use Nelmio\ApiDocBundle\Annotation\ApiDoc;
 
 /**
- * ACSEOAutomaticApiTestCommand creates automatic Behat features for api.
+ * ACSEOAutomaticApiTestCommand creates auto-generated Behat features for all opened api endpoints.
+ *
+ * @author Kévin Marcachi <kevin.marcachi@acseo-conseil.fr>
  */
 class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
 {
@@ -32,7 +35,6 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
 
     /**
      * {@inheritdoc}
-     *
      */
     protected function execute(InputInterface $input, OutputInterface $output)
     {
@@ -135,6 +137,12 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
         foreach ($aggregate as $action => $data) {
             if ($data !== null) {
 
+                // Check if action needs authentication and if oauth config is well provided
+                if (true === $data->getAuthentication() && false === $this->isAuthenticationDataProvided()) {
+                    $this->io->warning(str_replace('_', ' ', $action) .' '. $name .' needs authentication. Please provide a valid config. No test created', 1);
+                    continue;
+                }
+
                 $this->writer
                     ->emptyLine()
                     ->addLine('Scenario: ' .  str_replace('_', ' ', $action) . ' ' . $name, 1)
@@ -144,15 +152,21 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
 
                 $url = $data->getResource();
                 if (strpos($url, '{id}') !== false) {
-                    $url = str_replace('{id}', '1', $url);
+                    // If url is corresponding to the endpoint where our authenticated user is stored
+                    // id "1" is already used. We will then used id "2"
+                    if ($this->isAuthenticatedUserEndpoint($url)) {
+                        $url = str_replace('{id}', '2', $url);
+                    } else {
+                        $url = str_replace('{id}', '1', $url);
+                    }
                 }
-
-                // Base request
-                $request = 'When I send a "'. $method .'" request to "'. $url .'"';
 
                 // If authentication needed
                 if (true === $data->getAuthentication()) {
                     $request = 'When I send an authenticated "'. $method .'" request to "'. $url .'"';
+                // Basic request
+                } else {
+                    $request = 'When I send a "'. $method .'" request to "'. $url .'"';
                 }
 
                 // If parameters expected
@@ -208,7 +222,7 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
      * @param  array $data
      * @return array
      */
-    protected function generateFakeParams($data)
+    protected function generateFakeParams(ApiDoc $data)
     {
         $params = array();
 
@@ -329,7 +343,7 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
      * @param  [type]  $data
      * @return boolean
      */
-    protected function isREST($action, $data)
+    protected function isREST($action, ApiDoc $data)
     {
         $endpoint = $this->endpointGuesser->guessEndpoint($data->getSection());
 
@@ -395,5 +409,41 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
         }
 
         return $validations;
+    }
+
+    /**
+     * Check if data deals with endpoint used to create an authenticated user.
+     *
+     * @param  string  $url
+     * @return boolean
+     */
+    protected function isAuthenticatedUserEndpoint($url)
+    {
+        $conf = $this->getContainer()->getParameter('ACSEOBehatGeneratorBundle');
+        $userClass = $conf['authentication']['user']['class'];
+        $entityName = (new \ReflectionClass($userClass))->getShortName();
+        $endpoint = $this->endpointGuesser->guessEndpoint($entityName);
+
+        return strpos($url, $endpoint) !== false;
+    }
+
+    /**
+     * Check if config has been made to create authenticated user on the fly.
+     *
+     * @return boolean
+     */
+    protected function isAuthenticationDataProvided()
+    {
+        try {
+            $conf = $this->getContainer()->getParameter('ACSEOBehatGeneratorBundle');
+            if (
+                isset($conf['authentication']['user']['class']) &&
+                isset($conf['authentication']['user']['attributes'])
+            ) {
+                return true;
+            }
+        } catch (\Exception $e) {}
+
+        return false;
     }
 }
