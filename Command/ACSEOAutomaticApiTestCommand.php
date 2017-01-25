@@ -267,7 +267,10 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
             } elseif ('datetime' === $details['dataType']) {
                 $attribute = 'iso8601';
             // Id, or collection of ids - Disabled
-            } elseif (false !== stripos($details['dataType'], 'IRI')) {
+            } elseif (
+                false !== stripos($details['dataType'], 'IRI') ||
+                false !== stripos($details['dataType'], 'object')
+            ) {
                 $attribute = null;
             }
 
