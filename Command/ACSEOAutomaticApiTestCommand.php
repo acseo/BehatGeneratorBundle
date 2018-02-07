@@ -43,12 +43,17 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
         $this->endpointGuesser = new ApiEndpointGuesser();
 
         $autoFeatureApiPath = $this->checkFolderStructure();
+        $customFeatureApiPath =  str_replace('/automatic/', '/custom/', $autoFeatureApiPath);
 
         $apiData = $this->getContainer()->get('nelmio_api_doc.extractor.api_doc_extractor')->all();
         $aggregates = $this->aggregate($apiData);
 
         foreach ($aggregates as $name => $aggregate) {
             if ($aggregate['CREATE'] !== null) {
+                if (file_exists($customFeatureApiPath .'/'. $name .'.feature')) {
+                    $this->io->warning('A custom test already exists for '.$name.'. No test created.');
+                    continue;
+                }
                 $test = $this->generateTest($name, $aggregate);
                 file_put_contents($autoFeatureApiPath .'/'. $name .'.feature', $test);
                 $this->io->success('Writing feature test for api resource: '. $name);
@@ -363,7 +368,7 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
                 return false;
         }
 
-        return strpos($data->getResource(), $endpoint) !== false;
+        return $data->getResource() === $endpoint;
     }
 
     /**
@@ -424,7 +429,7 @@ class ACSEOAutomaticApiTestCommand extends ContainerAwareCommand
         $entityName = (new \ReflectionClass($userClass))->getShortName();
         $endpoint = $this->endpointGuesser->guessEndpoint($entityName);
 
-        return strpos($url, $endpoint) !== false;
+        return $url === $endpoint;
     }
 
     /**
