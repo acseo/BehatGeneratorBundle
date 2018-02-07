@@ -13,7 +13,7 @@ class ExtendedMinkContext extends MinkContext
     {
         $statusCode = $this->getSession()->getStatusCode();
         if ($statusCode < 200 || $statusCode > 299) {
-            throw new \Exception('The response is '. $statusCode .'. It sould not be.');
+            throw new \Exception('The response is '. $statusCode .'. It sould not be. Exception returned: '.$this->getSession()->getPage()->getContent());
         }
     }
 }
